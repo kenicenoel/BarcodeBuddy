@@ -1,10 +1,8 @@
 package com.shipwebsource.barcodebuddy;
 
 import android.Manifest;
-import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.Dialog;
-import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
@@ -18,6 +16,7 @@ import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.util.SparseArray;
 import android.view.View;
+import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -33,47 +32,61 @@ import java.io.IOException;
 
 public class MainActivity extends AppCompatActivity {
 
-    private static final String TAG = "BarcodeBuddyMain" ;
+    private static final String TAG = "BarcodeBuddyMain";
     private static final int RC_HANDLE_CAMERA_PERM = 2;
     // intent request code to handle updating play services if needed.
     private static final int RC_HANDLE_GMS = 9001;
-    private CameraSourcePreview cameraView;
+    private CameraSourcePreview preview;
+    GraphicOverlay overlay;
     private BarcodeDetector barcodeDetector;
 
-    private CameraSource cameraSource;
     private TextView scanResult;
-    private GraphicOverlay<BarcodeGraphic> graphicOverlay;
+    private ImageView flashState;
+
+    private boolean flashOn;
+    private boolean autoFocusOn;
+    private CameraSource cameraSource;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        scanResult = (TextView) findViewById(R.id.scanResult);
-        cameraView = (CameraSourcePreview) findViewById(R.id.camera_view);
-        graphicOverlay =  (GraphicOverlay<BarcodeGraphic>) findViewById(R.id.graphicOverlay);
+        // Set default values for auto focus and flash. Autofocus will always be on by default
+        flashOn = false;
+        autoFocusOn = true;
 
-        // Check for the camera permission before accessing the camera.  If the
-        // permission is not granted yet, request permission.
+        scanResult = (TextView) findViewById(R.id.scanResult);
+        preview = (CameraSourcePreview) findViewById(R.id.camera_view);
+        overlay = (GraphicOverlay) findViewById(R.id.graphicOverlay);
+        flashState = (ImageView) findViewById(R.id.cameraFlashState);
+        flashState.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v)
+            {
+
+                Snackbar snackbar = Snackbar.make(findViewById(android.R.id.content), "Flash feature is disabled for later version", Snackbar.LENGTH_LONG);
+                snackbar.show();
+
+            }
+        });
+
+        // Check for the camera permission before accessing the camera.  If the permission is not granted yet, request permission.
         int rc = ActivityCompat.checkSelfPermission(this, Manifest.permission.CAMERA);
-        if (rc == PackageManager.PERMISSION_GRANTED)
-        {
-            createCameraSource();
+        if (rc == PackageManager.PERMISSION_GRANTED) {
+            createCameraSource(autoFocusOn, flashOn);
         } else {
             requestCameraPermission();
         }
-
 
 
     }
 
     /**
      * Handles the requesting of the camera permission.  This includes
-     * showing a "Snackbar" message of why the permission is needed then
-     * sending the request.
+     * showing a "Snackbar" message of why the permission is needed then sending the request.
      */
-    private void requestCameraPermission()
-    {
+    private void requestCameraPermission() {
         Log.w(TAG, "Camera permission is not granted. Requesting permission");
 
         final String[] permissions = new String[]{Manifest.permission.CAMERA};
@@ -86,8 +99,7 @@ public class MainActivity extends AppCompatActivity {
 
         final Activity thisActivity = this;
 
-        View.OnClickListener listener = new View.OnClickListener()
-        {
+        View.OnClickListener listener = new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 ActivityCompat.requestPermissions(thisActivity, permissions,
@@ -95,37 +107,21 @@ public class MainActivity extends AppCompatActivity {
             }
         };
 
-        Snackbar.make(graphicOverlay, R.string.permission_camera_rationale,
+        Snackbar.make(overlay, R.string.permission_camera_rationale,
                 Snackbar.LENGTH_INDEFINITE)
                 .setAction(R.string.ok, listener)
                 .show();
     }
 
-    @SuppressLint("InlinedApi")
-    private void createCameraSource()
-    {
-        Context context = getApplicationContext();
 
-        // A barcode detector is created to track barcodes.  An associated multi-processor instance
-        // is set to receive the barcode detection results, track the barcodes, and maintain
-        // graphics for each barcode on screen.  The factory is used by the multi-processor to
-        // create a separate tracker instance for each barcode.
-        BarcodeDetector barcodeDetector = new BarcodeDetector.Builder(context).setBarcodeFormats(Barcode.QR_CODE | Barcode.CODE_128).build();
-        BarcodeTrackerFactory barcodeFactory = new BarcodeTrackerFactory(graphicOverlay);
-        barcodeDetector.setProcessor(
-                new MultiProcessor.Builder<>(barcodeFactory).build());
+    private void createCameraSource(boolean autoFocusOn, boolean flashOn) {
+        BarcodeDetector barcodeDetector = new BarcodeDetector.Builder(getApplicationContext())
+                .setBarcodeFormats(Barcode.QR_CODE | Barcode.CODE_128)
+                .build();
+        BarcodeTrackerFactory barcodeFactory = new BarcodeTrackerFactory(overlay);
+        barcodeDetector.setProcessor(new MultiProcessor.Builder<>(barcodeFactory).build());
 
-        if (!barcodeDetector.isOperational())
-        {
-            // Note: The first time that an app using the barcode or face API is installed on a
-            // device, GMS will download a native libraries to the device in order to do detection.
-            // Usually this completes before the app is run for the first time.  But if that
-            // download has not yet completed, then the above call will not detect any barcodes
-            // and/or faces.
-            //
-            // isOperational() can be used to check if the required native libraries are currently
-            // available.  The detectors will automatically become operational once the library
-            // downloads complete on device.
+        if (!barcodeDetector.isOperational()) {
             Log.w(TAG, "Detector dependencies are not yet available.");
 
             // Check for low storage.  If there is low storage, the native library will not be
@@ -133,46 +129,42 @@ public class MainActivity extends AppCompatActivity {
             IntentFilter lowstorageFilter = new IntentFilter(Intent.ACTION_DEVICE_STORAGE_LOW);
             boolean hasLowStorage = registerReceiver(null, lowstorageFilter) != null;
 
-            if (hasLowStorage)
-            {
+            if (hasLowStorage) {
                 Toast.makeText(this, R.string.low_storage_error, Toast.LENGTH_LONG).show();
                 Log.w(TAG, getString(R.string.low_storage_error));
             }
         }
 
-        // Creates and starts the camera.  Note that this uses a higher resolution in comparison
-        // to other detection examples to enable the barcode detector to detect small barcodes
-        // at long distances.
-        CameraSource.Builder builder = new CameraSource.Builder(getApplicationContext(), barcodeDetector)
+        cameraSource = new CameraSource.Builder(getApplicationContext(), barcodeDetector)
                 .setFacing(CameraSource.CAMERA_FACING_BACK)
+                .setAutoFocusEnabled(true)
                 .setRequestedPreviewSize(1600, 1024)
-                .setRequestedFps(15.0f);
+                .setRequestedFps(15.0f)
+                .build();
 
-        cameraSource = builder.setAutoFocusEnabled(true).build();
-        barcodeDetector.setProcessor(new Detector.Processor<Barcode>() {
-            @Override
-            public void release() {
 
-            }
 
-            @Override
-            public void receiveDetections(Detector.Detections<Barcode> detections)
-            {
-                final SparseArray<Barcode> barcodes = detections.getDetectedItems();
-
-                if (barcodes.size() != 0)
+                barcodeDetector.setProcessor(new Detector.Processor<Barcode>()
                 {
-                    scanResult.post(new Runnable()
-                    {    // Use the post method of the TextView
-                        public void run()
-                        {
-                            scanResult.setText(barcodes.valueAt(0).displayValue);
-                            Log.d(TAG, barcodes.valueAt(0).displayValue);
+                    @Override
+                    public void release() {
+
+                    }
+
+                    @Override
+                    public void receiveDetections(Detector.Detections<Barcode> detections) {
+                        final SparseArray<Barcode> barcodes = detections.getDetectedItems();
+
+                        if (barcodes.size() != 0) {
+                            scanResult.post(new Runnable() {    // Use the post method of the TextView
+                                public void run() {
+                                    scanResult.setText(barcodes.valueAt(0).displayValue);
+                                    Log.d(TAG, barcodes.valueAt(0).displayValue);
+                                }
+                            });
                         }
-                    });
-                }
-            }
-        });
+                    }
+                });
 
 
     }
@@ -185,48 +177,35 @@ public class MainActivity extends AppCompatActivity {
     private void startCameraSource() throws SecurityException
     {
         // check that the device has play services available.
-        int code = GoogleApiAvailability.getInstance().isGooglePlayServicesAvailable(
-                getApplicationContext());
-        if (code != ConnectionResult.SUCCESS) {
-            Dialog dlg =
-                    GoogleApiAvailability.getInstance().getErrorDialog(this, code, RC_HANDLE_GMS);
+        int code = GoogleApiAvailability.getInstance().isGooglePlayServicesAvailable(getApplicationContext());
+        if (code != ConnectionResult.SUCCESS)
+        {
+            Dialog dlg = GoogleApiAvailability.getInstance().getErrorDialog(this, code, RC_HANDLE_GMS);
             dlg.show();
         }
 
         if (cameraSource != null) {
             try {
-                cameraView.start(cameraSource, graphicOverlay);
+                preview.start(cameraSource, overlay);
             } catch (IOException e) {
                 Log.e(TAG, "Unable to start camera source.", e);
                 cameraSource.release();
                 cameraSource = null;
             }
         }
+
+
     }
 
 
     /**
      * Callback for the result from requesting permissions. This method
      * is invoked for every call on {@link #requestPermissions(String[], int)}.
-     * <p>
-     * <strong>Note:</strong> It is possible that the permissions request interaction
-     * with the user is interrupted. In this case you will receive empty permissions
-     * and results arrays which should be treated as a cancellation.
-     * </p>
-     *
-     * @param requestCode  The request code passed in {@link #requestPermissions(String[], int)}.
-     * @param permissions  The requested permissions. Never null.
-     * @param grantResults The grant results for the corresponding permissions
-     *                     which is either {@link PackageManager#PERMISSION_GRANTED}
-     *                     or {@link PackageManager#PERMISSION_DENIED}. Never null.
-     * @see #requestPermissions(String[], int)
      */
+
     @Override
-    public void onRequestPermissionsResult(int requestCode,
-                                           @NonNull String[] permissions,
-                                           @NonNull int[] grantResults) {
-        if (requestCode != RC_HANDLE_CAMERA_PERM)
-        {
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        if (requestCode != RC_HANDLE_CAMERA_PERM) {
             Log.d(TAG, "Got unexpected permission result: " + requestCode);
             super.onRequestPermissionsResult(requestCode, permissions, grantResults);
             return;
@@ -235,20 +214,17 @@ public class MainActivity extends AppCompatActivity {
         if (grantResults.length != 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
             Log.d(TAG, "Camera permission granted - initialize the camera source");
 
-//            // we have permission, so create the camerasource
-//            boolean autoFocus = getIntent().getBooleanExtra(AutoFocus,false);
-//            boolean useFlash = getIntent().getBooleanExtra(UseFlash, false);
-            createCameraSource();
+//          we have permission, so create the camerasource
+
+            createCameraSource(autoFocusOn, flashOn);
             return;
         }
 
         Log.e(TAG, "Permission not granted: results len = " + grantResults.length +
                 " Result code = " + (grantResults.length > 0 ? grantResults[0] : "(empty)"));
 
-        DialogInterface.OnClickListener listener = new DialogInterface.OnClickListener()
-        {
-            public void onClick(DialogInterface dialog, int id)
-            {
+        DialogInterface.OnClickListener listener = new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog, int id) {
                 finish();
             }
         };
@@ -260,23 +236,19 @@ public class MainActivity extends AppCompatActivity {
                 .show();
     }
 
-    /**
-     * Restarts the camera.
-     */
+    // Restart the camera
     @Override
     protected void onResume() {
         super.onResume();
         startCameraSource();
     }
 
-    /**
-     * Stops the camera.
-     */
+    // Stop the camera
     @Override
     protected void onPause() {
         super.onPause();
-        if (cameraView != null) {
-            cameraView.stop();
+        if (preview != null) {
+            preview.stop();
         }
     }
 
@@ -285,12 +257,11 @@ public class MainActivity extends AppCompatActivity {
      * rest of the processing pipeline.
      */
     @Override
-    protected void onDestroy()
-    {
+    protected void onDestroy() {
         super.onDestroy();
-        if (cameraView != null) {
-            cameraView.release();
-        }
+
+            cameraSource.release();
+
     }
 
 
