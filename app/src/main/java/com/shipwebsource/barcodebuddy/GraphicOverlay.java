@@ -3,6 +3,22 @@ package com.shipwebsource.barcodebuddy;
 /**
  * Created by Software Developer on 9/12/2016.
  */
+/*
+ * Copyright (C) The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 
 import android.content.Context;
 import android.graphics.Canvas;
@@ -18,11 +34,11 @@ import java.util.Set;
  * A view which renders a series of custom graphics to be overlayed on top of an associated preview
  * (i.e., the camera preview).  The creator can add graphics objects, update the objects, and remove
  * them, triggering the appropriate drawing and invalidation within the view.<p>
- *
+ * <p/>
  * Supports scaling and mirroring of the graphics relative the camera's preview properties.  The
  * idea is that detection items are expressed in terms of a preview size, but need to be scaled up
  * to the full view size, and also mirrored in the case of the front-facing camera.<p>
- *
+ * <p/>
  * Associated {@link Graphic} items should use the following methods to convert to view coordinates
  * for the graphics that are drawn:
  * <ol>
@@ -32,25 +48,27 @@ import java.util.Set;
  * from the preview's coordinate system to the view coordinate system.</li>
  * </ol>
  */
-public class GraphicOverlay<T extends GraphicOverlay.Graphic> extends View {
+public class GraphicOverlay extends View
+{
     private final Object mLock = new Object();
     private int mPreviewWidth;
     private float mWidthScaleFactor = 1.0f;
     private int mPreviewHeight;
     private float mHeightScaleFactor = 1.0f;
     private int mFacing = CameraSource.CAMERA_FACING_BACK;
-    private Set<T> mGraphics = new HashSet<>();
-    private T mFirstGraphic;
+    private Set<Graphic> mGraphics = new HashSet<>();
 
     /**
      * Base class for a custom graphics object to be rendered within the graphic overlay.  Subclass
      * this and implement the {@link Graphic#draw(Canvas)} method to define the
      * graphics element.  Add instances to the overlay using {@link GraphicOverlay#add(Graphic)}.
      */
-    public static abstract class Graphic {
+    public static abstract class Graphic
+    {
         private GraphicOverlay mOverlay;
 
-        public Graphic(GraphicOverlay overlay) {
+        public Graphic(GraphicOverlay overlay)
+        {
             mOverlay = overlay;
         }
 
@@ -118,7 +136,6 @@ public class GraphicOverlay<T extends GraphicOverlay.Graphic> extends View {
     public void clear() {
         synchronized (mLock) {
             mGraphics.clear();
-            mFirstGraphic = null;
         }
         postInvalidate();
     }
@@ -126,12 +143,9 @@ public class GraphicOverlay<T extends GraphicOverlay.Graphic> extends View {
     /**
      * Adds a graphic to the overlay.
      */
-    public void add(T graphic) {
+    public void add(Graphic graphic) {
         synchronized (mLock) {
             mGraphics.add(graphic);
-            if (mFirstGraphic == null) {
-                mFirstGraphic = graphic;
-            }
         }
         postInvalidate();
     }
@@ -139,25 +153,11 @@ public class GraphicOverlay<T extends GraphicOverlay.Graphic> extends View {
     /**
      * Removes a graphic from the overlay.
      */
-    public void remove(T graphic) {
+    public void remove(Graphic graphic) {
         synchronized (mLock) {
             mGraphics.remove(graphic);
-            if (mFirstGraphic != null && mFirstGraphic.equals(graphic)) {
-                mFirstGraphic = null;
-            }
         }
         postInvalidate();
-    }
-
-    /**
-     * Returns the first (oldest) graphic added.  This is used
-     * to get the barcode that was detected first.
-     * @return graphic containing the barcode, or null if no barcodes are detected.
-     */
-    public T getFirstGraphic() {
-        synchronized (mLock) {
-            return mFirstGraphic;
-        }
     }
 
     /**
@@ -192,4 +192,3 @@ public class GraphicOverlay<T extends GraphicOverlay.Graphic> extends View {
         }
     }
 }
-
