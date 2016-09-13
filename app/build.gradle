@@ -1,21 +1,30 @@
 apply plugin: 'com.android.application'
 
 android {
+    signingConfigs {
+        config {
+            keyAlias 'BarcodeBuddy'
+            keyPassword 'k3ninjan03l'
+            storeFile file('C:/Users/Software Developer.SoftDev003/OneDrive/Android Key Store/BarcodeBuddy.jks')
+            storePassword 'k3ninjan03l'
+        }
+    }
     compileSdkVersion 23
     buildToolsVersion "23.0.2"
-
     defaultConfig {
-        applicationId "com.shipwebsource.barcodebuddy"
+        applicationId 'com.kenice.barcodebuddy'
         minSdkVersion 19
         targetSdkVersion 23
-        versionCode 1
-        versionName "1.0"
+        versionName 'alpha-1'
+        signingConfig signingConfigs.config
     }
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
+    }
+    productFlavors {
     }
 }
 
