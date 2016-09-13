@@ -91,7 +91,6 @@ public class MainActivity extends AppCompatActivity
             // Set default values for auto focus and flash. Autofocus will always be on by default
             useFlash = false;
             useAutoFocus = true;
-
             Snackbar.make(overlay, "Tap to capture. Pinch/Stretch to zoom", Snackbar.LENGTH_LONG).show();
         }
 
