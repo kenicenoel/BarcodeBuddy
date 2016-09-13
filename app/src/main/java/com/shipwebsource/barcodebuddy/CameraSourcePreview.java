@@ -1,5 +1,19 @@
 package com.shipwebsource.barcodebuddy;
 
+import android.Manifest;
+import android.content.Context;
+import android.content.res.Configuration;
+import android.support.annotation.RequiresPermission;
+import android.util.AttributeSet;
+import android.util.Log;
+import android.view.SurfaceHolder;
+import android.view.SurfaceView;
+import android.view.ViewGroup;
+
+import com.google.android.gms.common.images.Size;
+
+import java.io.IOException;
+
 /**
  * Created by Software Developer on 9/12/2016.
  */
@@ -19,20 +33,6 @@ package com.shipwebsource.barcodebuddy;
  * limitations under the License.
  */
 
-
-import android.content.Context;
-import android.content.res.Configuration;
-import android.util.AttributeSet;
-import android.util.Log;
-import android.view.SurfaceHolder;
-import android.view.SurfaceView;
-import android.view.ViewGroup;
-
-import com.google.android.gms.common.images.Size;
-import com.google.android.gms.vision.CameraSource;
-
-import java.io.IOException;
-
 public class CameraSourcePreview extends ViewGroup
 {
     private static final String TAG = "CameraSourcePreview";
@@ -45,8 +45,7 @@ public class CameraSourcePreview extends ViewGroup
 
     private GraphicOverlay mOverlay;
 
-    public CameraSourcePreview(Context context, AttributeSet attrs)
-    {
+    public CameraSourcePreview(Context context, AttributeSet attrs) {
         super(context, attrs);
         mContext = context;
         mStartRequested = false;
@@ -57,22 +56,22 @@ public class CameraSourcePreview extends ViewGroup
         addView(mSurfaceView);
     }
 
-    public void start(CameraSource cameraSource) throws IOException {
+    @RequiresPermission(Manifest.permission.CAMERA)
+    public void start(CameraSource cameraSource) throws IOException, SecurityException {
         if (cameraSource == null) {
             stop();
         }
 
         mCameraSource = cameraSource;
 
-        if (mCameraSource != null)
-        {
+        if (mCameraSource != null) {
             mStartRequested = true;
             startIfReady();
         }
     }
 
-    public void start(CameraSource cameraSource, GraphicOverlay overlay) throws IOException
-    {
+    @RequiresPermission(Manifest.permission.CAMERA)
+    public void start(CameraSource cameraSource, GraphicOverlay overlay) throws IOException, SecurityException {
         mOverlay = overlay;
         start(cameraSource);
     }
@@ -90,18 +89,22 @@ public class CameraSourcePreview extends ViewGroup
         }
     }
 
-    private void startIfReady() throws IOException {
+    @RequiresPermission(Manifest.permission.CAMERA)
+    private void startIfReady() throws IOException, SecurityException {
         if (mStartRequested && mSurfaceAvailable) {
             mCameraSource.start(mSurfaceView.getHolder());
             if (mOverlay != null) {
                 Size size = mCameraSource.getPreviewSize();
                 int min = Math.min(size.getWidth(), size.getHeight());
                 int max = Math.max(size.getWidth(), size.getHeight());
-                if (isPortraitMode()) {
+                if (isPortraitMode())
+                {
                     // Swap width and height sizes when in portrait, since it will be rotated by
                     // 90 degrees
                     mOverlay.setCameraInfo(min, max, mCameraSource.getCameraFacing());
-                } else {
+                }
+                else
+                {
                     mOverlay.setCameraInfo(max, min, mCameraSource.getCameraFacing());
                 }
                 mOverlay.clear();
@@ -116,6 +119,8 @@ public class CameraSourcePreview extends ViewGroup
             mSurfaceAvailable = true;
             try {
                 startIfReady();
+            } catch (SecurityException se) {
+                Log.e(TAG,"Do not have permission to start the camera", se);
             } catch (IOException e) {
                 Log.e(TAG, "Could not start camera source.", e);
             }
@@ -146,6 +151,7 @@ public class CameraSourcePreview extends ViewGroup
         // Swap width and height sizes when in portrait, since it will be rotated 90 degrees
         if (isPortraitMode()) {
             int tmp = width;
+            //noinspection SuspiciousNameCombination
             width = height;
             height = tmp;
         }
@@ -155,12 +161,12 @@ public class CameraSourcePreview extends ViewGroup
 
         // Computes height and width for potentially doing fit width.
         int childWidth = layoutWidth;
-        int childHeight = (int) (((float) layoutWidth / (float) width) * height);
+        int childHeight = (int)(((float) layoutWidth / (float) width) * height);
 
         // If height is too tall using fit width, does fit height instead.
         if (childHeight > layoutHeight) {
             childHeight = layoutHeight;
-            childWidth = (int) (((float) layoutHeight / (float) height) * width);
+            childWidth = (int)(((float) layoutHeight / (float) height) * width);
         }
 
         for (int i = 0; i < getChildCount(); ++i) {
@@ -169,6 +175,8 @@ public class CameraSourcePreview extends ViewGroup
 
         try {
             startIfReady();
+        } catch (SecurityException se) {
+            Log.e(TAG,"Do not have permission to start the camera", se);
         } catch (IOException e) {
             Log.e(TAG, "Could not start camera source.", e);
         }

@@ -48,27 +48,44 @@ import java.util.Set;
  * from the preview's coordinate system to the view coordinate system.</li>
  * </ol>
  */
-public class GraphicOverlay extends View
-{
+
+/**
+ * A view which renders a series of custom graphics to be overlayed on top of an associated preview
+ * (i.e., the camera preview).  The creator can add graphics objects, update the objects, and remove
+ * them, triggering the appropriate drawing and invalidation within the view.<p>
+ *
+ * Supports scaling and mirroring of the graphics relative the camera's preview properties.  The
+ * idea is that detection items are expressed in terms of a preview size, but need to be scaled up
+ * to the full view size, and also mirrored in the case of the front-facing camera.<p>
+ *
+ * Associated {@link Graphic} items should use the following methods to convert to view coordinates
+ * for the graphics that are drawn:
+ * <ol>
+ * <li>{@link Graphic#scaleX(float)} and {@link Graphic#scaleY(float)} adjust the size of the
+ * supplied value from the preview scale to the view scale.</li>
+ * <li>{@link Graphic#translateX(float)} and {@link Graphic#translateY(float)} adjust the coordinate
+ * from the preview's coordinate system to the view coordinate system.</li>
+ * </ol>
+ */
+public class GraphicOverlay<T extends GraphicOverlay.Graphic> extends View {
     private final Object mLock = new Object();
     private int mPreviewWidth;
     private float mWidthScaleFactor = 1.0f;
     private int mPreviewHeight;
     private float mHeightScaleFactor = 1.0f;
     private int mFacing = CameraSource.CAMERA_FACING_BACK;
-    private Set<Graphic> mGraphics = new HashSet<>();
+    private Set<T> mGraphics = new HashSet<>();
+    private T mFirstGraphic;
 
     /**
      * Base class for a custom graphics object to be rendered within the graphic overlay.  Subclass
      * this and implement the {@link Graphic#draw(Canvas)} method to define the
      * graphics element.  Add instances to the overlay using {@link GraphicOverlay#add(Graphic)}.
      */
-    public static abstract class Graphic
-    {
+    public static abstract class Graphic {
         private GraphicOverlay mOverlay;
 
-        public Graphic(GraphicOverlay overlay)
-        {
+        public Graphic(GraphicOverlay overlay) {
             mOverlay = overlay;
         }
 
@@ -136,6 +153,7 @@ public class GraphicOverlay extends View
     public void clear() {
         synchronized (mLock) {
             mGraphics.clear();
+            mFirstGraphic = null;
         }
         postInvalidate();
     }
@@ -143,9 +161,12 @@ public class GraphicOverlay extends View
     /**
      * Adds a graphic to the overlay.
      */
-    public void add(Graphic graphic) {
+    public void add(T graphic) {
         synchronized (mLock) {
             mGraphics.add(graphic);
+            if (mFirstGraphic == null) {
+                mFirstGraphic = graphic;
+            }
         }
         postInvalidate();
     }
@@ -153,11 +174,25 @@ public class GraphicOverlay extends View
     /**
      * Removes a graphic from the overlay.
      */
-    public void remove(Graphic graphic) {
+    public void remove(T graphic) {
         synchronized (mLock) {
             mGraphics.remove(graphic);
+            if (mFirstGraphic != null && mFirstGraphic.equals(graphic)) {
+                mFirstGraphic = null;
+            }
         }
         postInvalidate();
+    }
+
+    /**
+     * Returns the first (oldest) graphic added.  This is used
+     * to get the barcode that was detected first.
+     * @return graphic containing the barcode, or null if no barcodes are detected.
+     */
+    public T getFirstGraphic() {
+        synchronized (mLock) {
+            return mFirstGraphic;
+        }
     }
 
     /**

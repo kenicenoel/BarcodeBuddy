@@ -17,7 +17,7 @@ package com.shipwebsource.barcodebuddy;/*
 abstract class TrackedGraphic<T> extends GraphicOverlay.Graphic {
     private int mId;
 
-    TrackedGraphic(GraphicOverlay overlay) {
+    TrackedGraphic(GraphicOverlay<BarcodeGraphic> overlay) {
         super(overlay);
     }
 

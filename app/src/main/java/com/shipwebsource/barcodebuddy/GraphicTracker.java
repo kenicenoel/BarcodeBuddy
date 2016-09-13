@@ -17,6 +17,7 @@ package com.shipwebsource.barcodebuddy;/*
 
 import com.google.android.gms.vision.Detector;
 import com.google.android.gms.vision.Tracker;
+import com.google.android.gms.vision.barcode.Barcode;
 
 /**
  * Generic tracker which is used for tracking either a face or a barcode (and can really be used for
@@ -24,11 +25,11 @@ import com.google.android.gms.vision.Tracker;
  * to an overlay, update the graphics as the item changes, and remove the graphics when the item
  * goes away.
  */
-class GraphicTracker<T> extends Tracker<T> {
-    private GraphicOverlay mOverlay;
-    private TrackedGraphic<T> mGraphic;
+class GraphicTracker extends Tracker<Barcode> {
+    private GraphicOverlay<BarcodeGraphic> mOverlay;
+    private BarcodeGraphic mGraphic;
 
-    GraphicTracker(GraphicOverlay overlay, TrackedGraphic<T> graphic) {
+    GraphicTracker(GraphicOverlay<BarcodeGraphic> overlay, BarcodeGraphic graphic) {
         mOverlay = overlay;
         mGraphic = graphic;
     }
@@ -37,7 +38,7 @@ class GraphicTracker<T> extends Tracker<T> {
      * Start tracking the detected item instance within the item overlay.
      */
     @Override
-    public void onNewItem(int id, T item) {
+    public void onNewItem(int id, Barcode item) {
         mGraphic.setId(id);
     }
 
@@ -45,18 +46,18 @@ class GraphicTracker<T> extends Tracker<T> {
      * Update the position/characteristics of the item within the overlay.
      */
     @Override
-    public void onUpdate(Detector.Detections<T> detectionResults, T item) {
+    public void onUpdate(Detector.Detections<Barcode> detectionResults, Barcode item) {
         mOverlay.add(mGraphic);
         mGraphic.updateItem(item);
     }
 
     /**
-     * Hide the graphic when the corresponding face was not detected.  This can happen for
-     * intermediate frames temporarily, for example if the face was momentarily blocked from
+     * Hide the graphic when the corresponding object was not detected.  This can happen for
+     * intermediate frames temporarily, for example if the object was momentarily blocked from
      * view.
      */
     @Override
-    public void onMissing(Detector.Detections<T> detectionResults) {
+    public void onMissing(Detector.Detections<Barcode> detectionResults) {
         mOverlay.remove(mGraphic);
     }
 
